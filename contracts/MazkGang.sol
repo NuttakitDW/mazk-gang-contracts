@@ -12,8 +12,12 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
 
   bytes32 root;
 
-  uint256 public publicSaleStartTime;
   uint256 public preSaleStartTime;
+  uint256 public preSaleEndTime;
+  uint256 public publicSaleStartTime;
+  uint256 public publicSaleEndTime;
+
+  uint256 public lastDevMintTime;
 
   uint256 public maxPerTxDuringMint;
   uint256 public amountForDevs;
@@ -21,21 +25,27 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
   uint256 public allowlistPrice = 0.08 ether;
   uint256 public publicPrice = 0.15 ether;
 
+  
   bool public usedDevMint = false;
 
   constructor(
-
-    uint256 _preSaleStartTime, 
-    uint256 _publicSaleStartTime, 
+    uint256 _preSaleStartTime,
+    uint256 _publicSaleStartTime,
+    uint256 _preSaleEndTime,
+    uint256 _publicSaleEndTime,
+    uint256 _lastDevMintTime,
     uint256 _maxBatchSize,
     uint256 _collectionSize,
     uint256 _amountForDevs
     ) ERC721A("MAZK GANG", "MAZK", _maxBatchSize, _collectionSize) {
 
       preSaleStartTime = _preSaleStartTime;
+      preSaleEndTime = _preSaleEndTime;
+      
       publicSaleStartTime = _publicSaleStartTime;
+      publicSaleEndTime = _publicSaleEndTime;
 
-      require(preSaleStartTime < publicSaleStartTime);
+      lastDevMintTime = _lastDevMintTime;
 
       amountForDevs = _amountForDevs;
       maxPerTxDuringMint = _maxBatchSize;
@@ -52,19 +62,14 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
     root = _root;
   }
 
-  //check block.timestamp
-  function checkTime() public view returns(uint256) {
-    return block.timestamp;
-  }
-
   function allowlistMint(uint256 _amount, bytes32[] calldata _merkleProof) external payable callerIsUser {
 
     bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-    //require(MerkleProof.verify(_merkleProof, root, leaf), "Incorrect proof");
+    require(MerkleProof.verify(_merkleProof, root, leaf), "Incorrect proof");
 
     require(isPreSaleOn(), "allowlist sale has not begun yet/ already end");
     require(totalSupply() + _amount <= collectionSize, "reached max supply");
-    require(_amount <= 2, "exceed batch limit");
+    require(_amount <= 2, "exceed presale batch limit");
 
 
     require(
@@ -77,7 +82,7 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
 
   }
 
-  function publicSaleMint(uint256 quantity)
+  function publicSaleMint(uint256 _amount)
     external
     payable
     callerIsUser
@@ -86,14 +91,14 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
       isPublicSaleOn(),
       "public sale has not begun yet"
     );
-    require(totalSupply() + quantity <= collectionSize, "reached max supply");
+    require(totalSupply() + _amount <= collectionSize, "reached max supply");
     require(
-      quantity <= maxPerTxDuringMint,
+      _amount <= maxPerTxDuringMint,
       "can not mint this many"
     );
 
-    refundIfOver(publicPrice * quantity);
-    _safeMint(msg.sender, quantity);
+    refundIfOver(publicPrice * _amount);
+    _safeMint(msg.sender, _amount);
 
   }
 
@@ -108,22 +113,25 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
   function isPreSaleOn() 
   public view returns (bool) {
     return block.timestamp >= preSaleStartTime &&
-    block.timestamp < publicSaleStartTime;
+    block.timestamp < preSaleEndTime;
   }
 
   function isPublicSaleOn() 
   public view returns (bool) {
-    return publicSaleStartTime < block.timestamp;
+    return block.timestamp >= publicSaleStartTime &&
+    block.timestamp < publicSaleEndTime;
   }
 
   //Just in case, we have to change.
-  function setPublicSaleStartTime(uint32 timestamp) external onlyOwner {
-    publicSaleStartTime = timestamp;
+  function setPreSaleTime(uint256 _start, uint256 _end) external onlyOwner {
+    preSaleStartTime = _start;
+    preSaleEndTime = _end;
   }
 
   //Just in case, we have to change.
-  function setPreSaleStartTime(uint32 timestamp) external onlyOwner {
-    preSaleStartTime = timestamp;
+  function setPublicSaleTime(uint256 _start, uint256 _end) external onlyOwner {
+    publicSaleStartTime = _start;
+    publicSaleEndTime = _end;
   }
 
   // For marketing etc.
@@ -145,19 +153,17 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
   }
 
   //only incase MAZK doesn't sold out
-  function devMintAfterPublic() external onlyOwner {
+  function lastDevMint(uint256 _amount) external onlyOwner {
 
-    require(totalSupply() < 10000, "limit exceed");
-    require(block.timestamp > publicSaleStartTime + 3 days);
-
+    require(block.timestamp > lastDevMintTime);
+    require(totalSupply() + _amount <= collectionSize, "reached max supply");
     require(
-      amountForDevs % maxPerTxDuringMint == 0,
-      "can only mint a multiple of the maxBatchSize"
+      _amount <= maxPerTxDuringMint,
+      "can not mint this many"
     );
-    uint256 numChunks = amountForDevs / maxPerTxDuringMint;
-    for (uint256 i = 0; i < numChunks; i++) {
-      _safeMint(msg.sender, maxPerTxDuringMint);
-    }
+
+    _safeMint(msg.sender, _amount);
+  
   }
 
   // // metadata URI
@@ -191,4 +197,4 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
   {
     return ownershipOf(tokenId);
   }
-}
+}==
