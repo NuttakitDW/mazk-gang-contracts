@@ -30,8 +30,8 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
 
   constructor(
     uint256 _preSaleStartTime,
-    uint256 _publicSaleStartTime,
     uint256 _preSaleEndTime,
+    uint256 _publicSaleStartTime,
     uint256 _publicSaleEndTime,
     uint256 _lastDevMintTime,
     uint256 _maxBatchSize,
@@ -152,7 +152,7 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
     }
   }
 
-  //only incase MAZK doesn't sold out
+  //only in case MAZK doesn't sold out
   function lastDevMint(uint256 _amount) external onlyOwner {
 
     require(block.timestamp > lastDevMintTime);
@@ -197,4 +197,4 @@ contract MazkGang is Ownable, ERC721A, ReentrancyGuard {
   {
     return ownershipOf(tokenId);
   }
-}==
+}
